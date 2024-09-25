@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # Updated to the latest version
 
       - name: Install required packages
         run: sudo apt-get update && sudo apt-get install -y jq dnsutils
@@ -32,21 +32,24 @@ jobs:
                 -H "x-api-key: ${NEXTDNS_API_KEY}")
 
               # Check if the rewrite already exists
-              rewrite_id=$(echo "$existing_rewrite" | jq -r ".data[] | select(.name == \"${domain}\") | .id")
+              rewrite_entry=$(echo "$existing_rewrite" | jq -r ".data[] | select(.name == \"${domain}\")")
+              rewrite_id=$(echo "$rewrite_entry" | jq -r ".id")
 
-              if [[ -n "$rewrite_id" ]]; then
+              if [[ -n "$rewrite_id" && "$rewrite_id" != "null" ]]; then
                   # Update the existing rewrite
-                  curl -s -X PUT "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
+                  response=$(curl -s -X PUT "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
                     -H "Content-Type: application/json" \
-                    -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}"
-                  echo "Updated existing rewrite for ${domain}"
+                    -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}")
+                  echo "$response"
+                  echo "Attempted to update existing rewrite for ${domain}"
               else
                   # Create a new rewrite
-                  curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+                  response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
                     -H "Content-Type: application/json" \
-                    -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}"
+                    -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}")
+                  echo "$response"
                   echo "Created new rewrite for ${domain}"
               fi
           }
