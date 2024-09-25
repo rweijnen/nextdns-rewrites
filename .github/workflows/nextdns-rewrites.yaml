@@ -61,13 +61,12 @@ jobs:
                           delete_response=$(curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${entry_id}" \
                             -H "x-api-key: ${NEXTDNS_API_KEY}")
 
-                          echo "Delete response: $delete_response"
-
-                          if echo "$delete_response" | jq -e '.errors' > /dev/null; then
+                          if [[ "$delete_response" == "" ]]; then
+                              echo "Successfully deleted rewrite for ${domain} with ID ${entry_id}"
+                          else
                               echo "Error deleting rewrite for ${domain} with ID ${entry_id}: $delete_response"
                               exit 1
                           fi
-                          echo "Successfully deleted rewrite for ${domain} with ID ${entry_id}"
                       fi
                   fi
               done
