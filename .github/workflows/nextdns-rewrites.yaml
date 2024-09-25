@@ -1,6 +1,8 @@
 name: Update NextDNS Rewrites
 
 on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs every day at midnight (UTC)
   workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
@@ -22,7 +24,6 @@ jobs:
           update_dns_rewrite() {
               local domain=$1
               local ip_address=$2
-              echo "Updating rewrite for ${domain} to ${ip_address}"
 
               # Fetch existing rewrites
               existing_rewrite=$(curl -s -X GET "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
@@ -32,21 +33,12 @@ jobs:
               rewrite_entry=$(echo "$existing_rewrite" | jq -r ".data[] | select(.name == \"${domain}\")")
               rewrite_id=$(echo "$rewrite_entry" | jq -r ".id")
 
-              echo "Rewrite ID for ${domain}: ${rewrite_id}"
-
               # Always use POST to update or create the rewrite
-              echo "Executing POST request:"
-              echo "curl -X POST \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites\" \
-                -H \"x-api-key: ${NEXTDNS_API_KEY}\" \
-                -H \"Content-Type: application/json\" \
-                -d '{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}'"
-
-              response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+              curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                 -H "x-api-key: ${NEXTDNS_API_KEY}" \
                 -H "Content-Type: application/json" \
-                -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}")
-
-              echo "$response"
+                -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}"
+              
               echo "Created/Updated rewrite for ${domain}"
           }
 
@@ -55,7 +47,6 @@ jobs:
               ip_address=$(dig +short "${domain}" @"${DNS_SERVER}" | head -n 1)
               
               if [[ -n "$ip_address" ]]; then
-                  echo "Domain: ${domain}, IP: ${ip_address}"
                   update_dns_rewrite "${domain}" "${ip_address}"
               else
                   echo "No IP address found for ${domain} on ${DNS_SERVER}"
