@@ -1,0 +1,59 @@
+name: Update NextDNS Rewrites
+
+on:
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  update-rewrites:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install required packages
+        run: sudo apt-get update && sudo apt-get install -y jq dnsutils
+
+      - name: Query IP addresses and update DNS rewrites
+        env:
+          NEXTDNS_PROFILE_ID: ${{ secrets.NEXTDNS_PROFILE_ID }}
+          NEXTDNS_API_KEY: ${{ secrets.NEXTDNS_API_KEY }}
+        run: |
+          DOMAINS=("archive.today" "archive.ph" "archive.is")
+          DNS_SERVER="1.1.1.1"
+
+          update_dns_rewrite() {
+              local domain=$1
+              local ip_address=$2
+              echo "Updating rewrite for ${domain} to ${ip_address}"
+
+              existing_rewrite=$(curl -s -X GET "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+                -H "x-api-key: ${NEXTDNS_API_KEY}")
+
+              if echo "$existing_rewrite" | jq -e ".[] | select(.name == \"${domain}\")" > /dev/null; then
+                  # Update the existing rewrite
+                  curl -s -X PUT "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${domain}" \
+                    -H "x-api-key: ${NEXTDNS_API_KEY}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}"
+                  echo "Updated existing rewrite for ${domain}"
+              else
+                  # Create a new rewrite
+                  curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+                    -H "x-api-key: ${NEXTDNS_API_KEY}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}"
+                  echo "Created new rewrite for ${domain}"
+              fi
+          }
+
+          for domain in "${DOMAINS[@]}"; do
+              ip_address=$(dig +short "${domain}" @"${DNS_SERVER}" | head -n 1)
+              
+              if [[ -n "$ip_address" ]]; then
+                  echo "Domain: ${domain}, IP: ${ip_address}"
+                  update_dns_rewrite "${domain}" "${ip_address}"
+              else
+                  echo "No IP address found for ${domain} on ${DNS_SERVER}"
+              fi
+          done
