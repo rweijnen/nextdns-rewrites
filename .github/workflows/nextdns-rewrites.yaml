@@ -90,6 +90,8 @@ jobs:
                       fi
 
                       echo "Successfully created/updated rewrite for ${domain} with IP ${new_ip}"
+                  else
+                      echo "Skipping creation for IP ${new_ip} as it already exists for ${domain}"
                   fi
               done
           }
