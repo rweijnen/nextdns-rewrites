@@ -101,11 +101,11 @@ jobs:
               echo "Querying IP addresses for ${domain}"
               
               # Capture the full dig output for debugging
-              dig_output=$(dig "${domain}" @"${DNS_SERVER}")
+              dig_output=$(dig +short "${domain}" @"${DNS_SERVER}")
               echo "Full dig output for ${domain}:\n$dig_output"
               
-              # Extract just the IP addresses
-              ip_addresses=($(echo "$dig_output" | grep -E '^[[:digit:]\.:]+$'))
+              # Extract just the IP addresses (IPv4 or IPv6) from the dig output
+              ip_addresses=($(echo "$dig_output" | grep -E '^[0-9.]+$|^[0-9a-fA-F:]+$'))
 
               echo "Found IP addresses for ${domain}: ${ip_addresses[*]}"
 
