@@ -42,8 +42,14 @@ jobs:
               if [[ -n "$rewrite_id" && "$rewrite_id" != "null" ]]; then
                   # Delete the existing rewrite
                   echo "Deleting existing rewrite for ${domain} with ID ${rewrite_id}"
-                  curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
-                    -H "x-api-key: ${NEXTDNS_API_KEY}"
+                  delete_response=$(curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
+                    -H "x-api-key: ${NEXTDNS_API_KEY}")
+
+                  if [[ "$delete_response" != "" ]]; then
+                      echo "Error deleting rewrite for ${domain}: $delete_response"
+                      exit 1
+                  fi
+                  echo "Successfully deleted rewrite for ${domain}"
               fi
 
               # Create or re-add the rewrite
@@ -53,8 +59,13 @@ jobs:
                 -H "Content-Type: application/json" \
                 -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}")
 
-              echo "$response"
-              echo "Created/Updated rewrite for ${domain}"
+              # Check if the response contains errors
+              if echo "$response" | jq -e '.errors' > /dev/null; then
+                  echo "Error creating/updating rewrite for ${domain}: $response"
+                  exit 1
+              fi
+
+              echo "Successfully created/updated rewrite for ${domain}"
           }
 
           # Query DNS server and update rewrites
