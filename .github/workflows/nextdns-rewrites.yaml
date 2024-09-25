@@ -21,6 +21,12 @@ jobs:
           DOMAINS=("archive.today" "archive.ph" "archive.is")
           DNS_SERVER="1.1.1.1"
 
+          # Fetch all existing rewrites once
+          echo "Fetching all existing rewrites"
+          existing_rewrites=$(curl -s -X GET "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+            -H "x-api-key: ${NEXTDNS_API_KEY}")
+          echo "Fetched rewrites: $existing_rewrites"
+
           update_dns_rewrite() {
               local domain=$1
               shift
@@ -28,13 +34,7 @@ jobs:
 
               echo "Checking for existing rewrite entries for ${domain}"
 
-              # Fetch existing rewrites
-              existing_rewrites=$(curl -s -X GET "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
-                -H "x-api-key: ${NEXTDNS_API_KEY}")
-              
-              echo "Existing rewrites response: $existing_rewrites"
-
-              # Extract all matching entries for the domain
+              # Extract all matching entries for the domain from the pre-fetched rewrite list
               matching_entries=$(echo "$existing_rewrites" | jq -c ".data[] | select(.name == \"${domain}\")")
               
               if [[ -z "$matching_entries" ]]; then
