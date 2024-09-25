@@ -23,7 +23,7 @@ jobs:
 
           update_dns_rewrite() {
               local domain=$1
-              local ip_address=$2
+              local ip_addresses=$2
 
               echo "Checking for existing rewrite entries for ${domain}"
 
@@ -49,8 +49,10 @@ jobs:
 
                   echo "Processing existing rewrite ID: $entry_id with IP: $existing_ip for domain: ${domain}"
 
-                  if [[ "$existing_ip" == "$ip_address" ]]; then
-                      echo "No change needed for ${domain}, rewrite with ID $entry_id already has IP ${ip_address}"
+                  # Check if this IP is still valid for the domain
+                  if [[ " ${ip_addresses[@]} " =~ " ${existing_ip} " ]]; then
+                      echo "No change needed for ${domain}, rewrite with ID $entry_id already has valid IP ${existing_ip}"
+                      ip_addresses=("${ip_addresses[@]/$existing_ip}")  # Remove the matched IP from the list
                   else
                       echo "Deleting outdated rewrite for ${domain} with ID ${entry_id}"
                       delete_response=$(curl -sv -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${entry_id}" \
@@ -67,36 +69,38 @@ jobs:
                   fi
               done
 
-              # If any entry was deleted or no matching entry was found, add the new rewrite
-              if [[ "$update_needed" == true ]] || [[ -z "$matching_entries" ]]; then
-                  echo "Creating/Updating rewrite for ${domain} with new IP ${ip_address}"
-                  response=$(curl -sv -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
-                    -H "x-api-key: ${NEXTDNS_API_KEY}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}" 2>&1)
+              # Add any remaining IP addresses as rewrites
+              for new_ip in "${ip_addresses[@]}"; do
+                  if [[ -n "$new_ip" ]]; then
+                      echo "Creating/Updating rewrite for ${domain} with IP ${new_ip}"
+                      response=$(curl -sv -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+                        -H "x-api-key: ${NEXTDNS_API_KEY}" \
+                        -H "Content-Type: application/json" \
+                        -d "{\"name\":\"${domain}\",\"content\":\"${new_ip}\"}" 2>&1)
 
-                  echo "POST response: $response"
+                      echo "POST response: $response"
 
-                  # Check if the response contains errors
-                  if echo "$response" | jq -e '.errors' > /dev/null; then
-                      echo "Error creating/updating rewrite for ${domain}: $response"
-                      exit 1
+                      # Check if the response contains errors
+                      if echo "$response" | jq -e '.errors' > /dev/null; then
+                          echo "Error creating/updating rewrite for ${domain}: $response"
+                          exit 1
+                      fi
+
+                      echo "Successfully created/updated rewrite for ${domain} with IP ${new_ip}"
                   fi
-
-                  echo "Successfully created/updated rewrite for ${domain}"
-              fi
+              done
           }
 
           # Query DNS server and update rewrites
           for domain in "${DOMAINS[@]}"; do
-              echo "Querying IP address for ${domain}"
-              ip_address=$(dig +short "${domain}" @"${DNS_SERVER}" | head -n 1)
+              echo "Querying IP addresses for ${domain}"
+              ip_addresses=($(dig +short "${domain}" @"${DNS_SERVER}"))
               
-              echo "Found IP address for ${domain}: ${ip_address}"
+              echo "Found IP addresses for ${domain}: ${ip_addresses[*]}"
 
-              if [[ -n "$ip_address" ]]; then
-                  update_dns_rewrite "${domain}" "${ip_address}"
+              if [[ ${#ip_addresses[@]} -gt 0 ]]; then
+                  update_dns_rewrite "${domain}" "${ip_addresses[@]}"
               else
-                  echo "No IP address found for ${domain} on ${DNS_SERVER}"
+                  echo "No IP addresses found for ${domain} on ${DNS_SERVER}"
               fi
           done
