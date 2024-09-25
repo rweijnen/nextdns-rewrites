@@ -43,13 +43,13 @@ jobs:
                   echo "curl -X PUT \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}\" \
                     -H \"x-api-key: ${NEXTDNS_API_KEY}\" \
                     -H \"Content-Type: application/json\" \
-                    -d '{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}'"
+                    -d '{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}'"
 
                   # Update the existing rewrite
                   response=$(curl -s -X PUT "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
                     -H "Content-Type: application/json" \
-                    -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}")
+                    -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}")
 
                   echo "$response"
                   echo "Attempted to update existing rewrite for ${domain}"
@@ -59,13 +59,13 @@ jobs:
                   echo "curl -X POST \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites\" \
                     -H \"x-api-key: ${NEXTDNS_API_KEY}\" \
                     -H \"Content-Type: application/json\" \
-                    -d '{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}'"
+                    -d '{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}'"
 
                   # Create a new rewrite
                   response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
                     -H "Content-Type: application/json" \
-                    -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}")
+                    -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}")
 
                   echo "$response"
                   echo "Created new rewrite for ${domain}"
