@@ -38,38 +38,32 @@ jobs:
               echo "Rewrite ID for ${domain}: ${rewrite_id}"
 
               if [[ -n "$rewrite_id" && "$rewrite_id" != "null" ]]; then
-                  # Show the exact curl command
-                  echo "Executing PUT request:"
-                  echo "curl -X PUT \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}\" \
-                    -H \"x-api-key: ${NEXTDNS_API_KEY}\" \
-                    -H \"Content-Type: application/json\" \
-                    -d '{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}'"
+                  # Delete the existing rewrite before re-adding
+                  echo "Executing DELETE request:"
+                  echo "curl -X DELETE \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}\" \
+                    -H \"x-api-key: ${NEXTDNS_API_KEY}\""
 
-                  # Update the existing rewrite
-                  response=$(curl -s -X PUT "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
-                    -H "x-api-key: ${NEXTDNS_API_KEY}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}")
+                  delete_response=$(curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
+                    -H "x-api-key: ${NEXTDNS_API_KEY}")
 
-                  echo "$response"
-                  echo "Attempted to update existing rewrite for ${domain}"
-              else
-                  # Show the exact curl command
-                  echo "Executing POST request:"
-                  echo "curl -X POST \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites\" \
-                    -H \"x-api-key: ${NEXTDNS_API_KEY}\" \
-                    -H \"Content-Type: application/json\" \
-                    -d '{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}'"
-
-                  # Create a new rewrite
-                  response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
-                    -H "x-api-key: ${NEXTDNS_API_KEY}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}")
-
-                  echo "$response"
-                  echo "Created new rewrite for ${domain}"
+                  echo "$delete_response"
+                  echo "Deleted existing rewrite for ${domain}"
               fi
+
+              # Create a new rewrite
+              echo "Executing POST request:"
+              echo "curl -X POST \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites\" \
+                -H \"x-api-key: ${NEXTDNS_API_KEY}\" \
+                -H \"Content-Type: application/json\" \
+                -d '{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}'"
+
+              response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+                -H "x-api-key: ${NEXTDNS_API_KEY}" \
+                -H "Content-Type: application/json" \
+                -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}")
+
+              echo "$response"
+              echo "Created/Updated rewrite for ${domain}"
           }
 
           # Query DNS server and update rewrites
