@@ -99,8 +99,14 @@ jobs:
           # Query DNS server and update rewrites
           for domain in "${DOMAINS[@]}"; do
               echo "Querying IP addresses for ${domain}"
-              ip_addresses=($(dig +short "${domain}" @"${DNS_SERVER}"))
               
+              # Capture the full dig output for debugging
+              dig_output=$(dig "${domain}" @"${DNS_SERVER}")
+              echo "Full dig output for ${domain}:\n$dig_output"
+              
+              # Extract just the IP addresses
+              ip_addresses=($(echo "$dig_output" | grep -E '^[[:digit:]\.:]+$'))
+
               echo "Found IP addresses for ${domain}: ${ip_addresses[*]}"
 
               if [[ ${#ip_addresses[@]} -gt 0 ]]; then
