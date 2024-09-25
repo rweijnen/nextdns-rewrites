@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4  # Updated to the latest version
+        uses: actions/checkout@v4  # Using the latest version
 
       - name: Install required packages
         run: sudo apt-get update && sudo apt-get install -y jq dnsutils
@@ -35,20 +35,38 @@ jobs:
               rewrite_entry=$(echo "$existing_rewrite" | jq -r ".data[] | select(.name == \"${domain}\")")
               rewrite_id=$(echo "$rewrite_entry" | jq -r ".id")
 
+              echo "Rewrite ID for ${domain}: ${rewrite_id}"
+
               if [[ -n "$rewrite_id" && "$rewrite_id" != "null" ]]; then
+                  # Show the exact curl command
+                  echo "Executing PUT request:"
+                  echo "curl -X PUT \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}\" \
+                    -H \"x-api-key: ${NEXTDNS_API_KEY}\" \
+                    -H \"Content-Type: application/json\" \
+                    -d '{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}'"
+
                   # Update the existing rewrite
                   response=$(curl -s -X PUT "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
                     -H "Content-Type: application/json" \
                     -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}")
+
                   echo "$response"
                   echo "Attempted to update existing rewrite for ${domain}"
               else
+                  # Show the exact curl command
+                  echo "Executing POST request:"
+                  echo "curl -X POST \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites\" \
+                    -H \"x-api-key: ${NEXTDNS_API_KEY}\" \
+                    -H \"Content-Type: application/json\" \
+                    -d '{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}'"
+
                   # Create a new rewrite
                   response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
                     -H "Content-Type: application/json" \
                     -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}")
+
                   echo "$response"
                   echo "Created new rewrite for ${domain}"
               fi
