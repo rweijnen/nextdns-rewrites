@@ -32,13 +32,28 @@ jobs:
               # Check if the rewrite already exists
               rewrite_entry=$(echo "$existing_rewrite" | jq -r ".data[] | select(.name == \"${domain}\")")
               rewrite_id=$(echo "$rewrite_entry" | jq -r ".id")
+              existing_ip=$(echo "$rewrite_entry" | jq -r ".content")
 
-              # Always use POST to update or create the rewrite
-              curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+              if [[ "$existing_ip" == "$ip_address" ]]; then
+                  echo "No change for ${domain}, current IP is already ${ip_address}"
+                  return
+              fi
+
+              if [[ -n "$rewrite_id" && "$rewrite_id" != "null" ]]; then
+                  # Delete the existing rewrite
+                  echo "Deleting existing rewrite for ${domain} with ID ${rewrite_id}"
+                  curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
+                    -H "x-api-key: ${NEXTDNS_API_KEY}"
+              fi
+
+              # Create or re-add the rewrite
+              echo "Creating/Updating rewrite for ${domain} with new IP ${ip_address}"
+              response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                 -H "x-api-key: ${NEXTDNS_API_KEY}" \
                 -H "Content-Type: application/json" \
-                -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}"
-              
+                -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}")
+
+              echo "$response"
               echo "Created/Updated rewrite for ${domain}"
           }
 
