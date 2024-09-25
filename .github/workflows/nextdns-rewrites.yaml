@@ -58,12 +58,12 @@ jobs:
                   else
                       if [[ -n "$entry_id" && "$entry_id" != "null" ]]; then
                           echo "Deleting outdated rewrite for ${domain} with ID ${entry_id}"
-                          delete_response=$(curl -sv -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${entry_id}" \
-                            -H "x-api-key: ${NEXTDNS_API_KEY}" 2>&1)
+                          delete_response=$(curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${entry_id}" \
+                            -H "x-api-key: ${NEXTDNS_API_KEY}")
 
                           echo "Delete response: $delete_response"
 
-                          if [[ "$delete_response" == *"error"* ]] || [[ -z "$delete_response" ]]; then
+                          if echo "$delete_response" | jq -e '.errors' > /dev/null; then
                               echo "Error deleting rewrite for ${domain} with ID ${entry_id}: $delete_response"
                               exit 1
                           fi
@@ -76,10 +76,10 @@ jobs:
               for new_ip in "${ip_addresses[@]}"; do
                   if [[ -z "${matched_ips[$new_ip]}" ]]; then
                       echo "Creating/Updating rewrite for ${domain} with IP ${new_ip}"
-                      response=$(curl -sv -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+                      response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                         -H "x-api-key: ${NEXTDNS_API_KEY}" \
                         -H "Content-Type: application/json" \
-                        -d "{\"name\":\"${domain}\",\"content\":\"${new_ip}\"}" 2>&1)
+                        -d "{\"name\":\"${domain}\",\"content\":\"${new_ip}\"}")
 
                       echo "POST response: $response"
 
