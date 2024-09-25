@@ -25,57 +25,66 @@ jobs:
               local domain=$1
               local ip_address=$2
 
-              echo "Checking for existing rewrite entry for ${domain}"
+              echo "Checking for existing rewrite entries for ${domain}"
 
               # Fetch existing rewrites
-              existing_rewrite=$(curl -s -X GET "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+              existing_rewrites=$(curl -s -X GET "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                 -H "x-api-key: ${NEXTDNS_API_KEY}")
               
-              echo "Existing rewrites response: $existing_rewrite"
+              echo "Existing rewrites response: $existing_rewrites"
 
-              # Check if the rewrite already exists
-              rewrite_entry=$(echo "$existing_rewrite" | jq -r ".data[] | select(.name == \"${domain}\")")
-              rewrite_id=$(echo "$rewrite_entry" | jq -r ".id")
-              existing_ip=$(echo "$rewrite_entry" | jq -r ".content")
-
-              echo "Found existing rewrite ID: $rewrite_id with IP: $existing_ip for domain: ${domain}"
-
-              if [[ "$existing_ip" == "$ip_address" ]]; then
-                  echo "No change needed for ${domain}, current IP is already ${ip_address}"
-                  return
+              # Extract all matching entries for the domain
+              matching_entries=$(echo "$existing_rewrites" | jq -c ".data[] | select(.name == \"${domain}\")")
+              
+              if [[ -z "$matching_entries" ]]; then
+                  echo "No existing rewrites found for ${domain}"
               fi
 
-              if [[ -n "$rewrite_id" && "$rewrite_id" != "null" ]]; then
-                  # Delete the existing rewrite
-                  echo "Attempting to delete existing rewrite for ${domain} with ID ${rewrite_id}"
-                  delete_response=$(curl -sv -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
-                    -H "x-api-key: ${NEXTDNS_API_KEY}" 2>&1)
+              update_needed=false
 
-                  echo "Delete response: $delete_response"
+              # Iterate over each matching entry
+              echo "$matching_entries" | while IFS= read -r entry; do
+                  entry_id=$(echo "$entry" | jq -r ".id")
+                  existing_ip=$(echo "$entry" | jq -r ".content")
 
-                  if [[ "$delete_response" == *"error"* ]] || [[ -z "$delete_response" ]]; then
-                      echo "Error deleting rewrite for ${domain}: $delete_response"
+                  echo "Processing existing rewrite ID: $entry_id with IP: $existing_ip for domain: ${domain}"
+
+                  if [[ "$existing_ip" == "$ip_address" ]]; then
+                      echo "No change needed for ${domain}, rewrite with ID $entry_id already has IP ${ip_address}"
+                  else
+                      echo "Deleting outdated rewrite for ${domain} with ID ${entry_id}"
+                      delete_response=$(curl -sv -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${entry_id}" \
+                        -H "x-api-key: ${NEXTDNS_API_KEY}" 2>&1)
+
+                      echo "Delete response: $delete_response"
+
+                      if [[ "$delete_response" == *"error"* ]] || [[ -z "$delete_response" ]]; then
+                          echo "Error deleting rewrite for ${domain} with ID ${entry_id}: $delete_response"
+                          exit 1
+                      fi
+                      echo "Successfully deleted rewrite for ${domain} with ID ${entry_id}"
+                      update_needed=true
+                  fi
+              done
+
+              # If any entry was deleted or no matching entry was found, add the new rewrite
+              if [[ "$update_needed" == true ]] || [[ -z "$matching_entries" ]]; then
+                  echo "Creating/Updating rewrite for ${domain} with new IP ${ip_address}"
+                  response=$(curl -sv -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+                    -H "x-api-key: ${NEXTDNS_API_KEY}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}" 2>&1)
+
+                  echo "POST response: $response"
+
+                  # Check if the response contains errors
+                  if echo "$response" | jq -e '.errors' > /dev/null; then
+                      echo "Error creating/updating rewrite for ${domain}: $response"
                       exit 1
                   fi
-                  echo "Successfully deleted rewrite for ${domain}"
+
+                  echo "Successfully created/updated rewrite for ${domain}"
               fi
-
-              # Create or re-add the rewrite
-              echo "Creating/Updating rewrite for ${domain} with new IP ${ip_address}"
-              response=$(curl -sv -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
-                -H "x-api-key: ${NEXTDNS_API_KEY}" \
-                -H "Content-Type: application/json" \
-                -d "{\"name\":\"${domain}\",\"content\":\"${ip_address}\"}" 2>&1)
-
-              echo "POST response: $response"
-
-              # Check if the response contains errors
-              if echo "$response" | jq -e '.errors' > /dev/null; then
-                  echo "Error creating/updating rewrite for ${domain}: $response"
-                  exit 1
-              fi
-
-              echo "Successfully created/updated rewrite for ${domain}"
           }
 
           # Query DNS server and update rewrites
