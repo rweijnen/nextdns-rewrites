@@ -102,17 +102,16 @@ jobs:
           for domain in "${DOMAINS[@]}"; do
               echo "Querying IP addresses for ${domain}"
               
-              # Capture the full dig output for debugging
-              # Query DNS server for both A (IPv4) and AAAA (IPv6) records
+              # Capture the full dig output for both A and AAAA records
               dig_output=$(dig +short "${domain}" A @"${DNS_SERVER}")
               dig_output_ipv6=$(dig +short "${domain}" AAAA @"${DNS_SERVER}")
 
               # Combine both IPv4 and IPv6 results
-              dig_output="${dig_output}\n${dig_output_ipv6}"
-              echo "Full dig output for ${domain}:\n$dig_output"
+              full_output="${dig_output}\n${dig_output_ipv6}"
+              echo "Full dig output for ${domain}:\n$full_output"
               
-              # Extract just the IP addresses (IPv4 or IPv6) from the dig output
-              ip_addresses=($(echo "$dig_output" | grep -E '^[0-9.]+$|^[0-9a-fA-F:]+$'))
+              # Extract just the IP addresses (IPv4 or IPv6) from the combined output
+              ip_addresses=($(echo -e "$full_output" | grep -E '^[0-9.]+$|^[0-9a-fA-F:]+$'))
 
               echo "Found IP addresses for ${domain}: ${ip_addresses[*]}"
 
