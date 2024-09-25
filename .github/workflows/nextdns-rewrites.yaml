@@ -55,6 +55,7 @@ jobs:
                   if [[ " ${ip_addresses[@]} " =~ " ${existing_ip} " ]]; then
                       echo "No change needed for ${domain}, rewrite with ID $entry_id already has valid IP ${existing_ip}"
                       matched_ips["$existing_ip"]=true  # Mark this IP as handled
+                      ip_addresses=("${ip_addresses[@]/$existing_ip}")  # Remove matched IP from the list
                   else
                       if [[ -n "$entry_id" && "$entry_id" != "null" ]]; then
                           echo "Deleting outdated rewrite for ${domain} with ID ${entry_id}"
@@ -71,9 +72,9 @@ jobs:
                   fi
               done
 
-              # Add any IP addresses that are not yet present as rewrites
-              for new_ip in "${ip_addresses[@]}"; do
-                  if [[ -z "${matched_ips[$new_ip]}" ]]; then
+              # Add any remaining IP addresses as rewrites
+              if [[ ${#ip_addresses[@]} -gt 0 ]]; then
+                  for new_ip in "${ip_addresses[@]}"; do
                       echo "Creating/Updating rewrite for ${domain} with IP ${new_ip}"
                       response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                         -H "x-api-key: ${NEXTDNS_API_KEY}" \
@@ -89,10 +90,10 @@ jobs:
                       fi
 
                       echo "Successfully created/updated rewrite for ${domain} with IP ${new_ip}"
-                  else
-                      echo "Skipping creation for IP ${new_ip} as it already exists for ${domain}"
-                  fi
-              done
+                  done
+              else
+                  echo "All IP addresses for ${domain} are already up-to-date. No new rewrite needed."
+              fi
           }
 
           # Query DNS server and update rewrites
