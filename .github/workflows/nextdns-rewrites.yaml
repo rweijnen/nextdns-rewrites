@@ -11,9 +11,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4  # Using the latest version
 
-      - name: Install required packages
-        run: sudo apt-get update && sudo apt-get install -y jq dnsutils
-
       - name: Query IP addresses and update DNS rewrites
         env:
           NEXTDNS_PROFILE_ID: ${{ secrets.NEXTDNS_PROFILE_ID }}
@@ -37,20 +34,7 @@ jobs:
 
               echo "Rewrite ID for ${domain}: ${rewrite_id}"
 
-              if [[ -n "$rewrite_id" && "$rewrite_id" != "null" ]]; then
-                  # Delete the existing rewrite before re-adding
-                  echo "Executing DELETE request:"
-                  echo "curl -X DELETE \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}\" \
-                    -H \"x-api-key: ${NEXTDNS_API_KEY}\""
-
-                  delete_response=$(curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
-                    -H "x-api-key: ${NEXTDNS_API_KEY}")
-
-                  echo "$delete_response"
-                  echo "Deleted existing rewrite for ${domain}"
-              fi
-
-              # Create a new rewrite
+              # Always use POST to update or create the rewrite
               echo "Executing POST request:"
               echo "curl -X POST \"https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites\" \
                 -H \"x-api-key: ${NEXTDNS_API_KEY}\" \
