@@ -27,12 +27,16 @@ jobs:
               local ip_address=$2
               echo "Updating rewrite for ${domain} to ${ip_address}"
 
+              # Fetch existing rewrites
               existing_rewrite=$(curl -s -X GET "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                 -H "x-api-key: ${NEXTDNS_API_KEY}")
 
-              if echo "$existing_rewrite" | jq -e ".[] | select(.name == \"${domain}\")" > /dev/null; then
+              # Check if the rewrite already exists
+              rewrite_id=$(echo "$existing_rewrite" | jq -r ".data[] | select(.name == \"${domain}\") | .id")
+
+              if [[ -n "$rewrite_id" ]]; then
                   # Update the existing rewrite
-                  curl -s -X PUT "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${domain}" \
+                  curl -s -X PUT "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${rewrite_id}" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
                     -H "Content-Type: application/json" \
                     -d "{\"name\":\"${domain}\",\"value\":\"${ip_address}\"}"
@@ -47,6 +51,7 @@ jobs:
               fi
           }
 
+          # Query DNS server and update rewrites
           for domain in "${DOMAINS[@]}"; do
               ip_address=$(dig +short "${domain}" @"${DNS_SERVER}" | head -n 1)
               
