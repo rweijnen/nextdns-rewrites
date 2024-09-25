@@ -72,28 +72,30 @@ jobs:
                   fi
               done
 
-              # Add any remaining IP addresses as rewrites
-              if [[ ${#ip_addresses[@]} -gt 0 ]]; then
-                  for new_ip in "${ip_addresses[@]}"; do
-                      echo "Creating/Updating rewrite for ${domain} with IP ${new_ip}"
-                      response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
-                        -H "x-api-key: ${NEXTDNS_API_KEY}" \
-                        -H "Content-Type: application/json" \
-                        -d "{\"name\":\"${domain}\",\"content\":\"${new_ip}\"}")
-
-                      echo "POST response: $response"
-
-                      # Check if the response contains errors
-                      if echo "$response" | jq -e '.errors' > /dev/null; then
-                          echo "Error creating/updating rewrite for ${domain}: $response"
-                          exit 1
-                      fi
-
-                      echo "Successfully created/updated rewrite for ${domain} with IP ${new_ip}"
-                  done
-              else
-                  echo "All IP addresses for ${domain} are already up-to-date. No new rewrite needed."
+              # If all IPs are already matched, return early
+              if [[ ${#ip_addresses[@]} -eq 0 ]]; then
+                  echo "All IP addresses for ${domain} are already up-to-date. Skipping rewrite creation."
+                  return
               fi
+
+              # Add any remaining IP addresses as rewrites
+              for new_ip in "${ip_addresses[@]}"; do
+                  echo "Creating/Updating rewrite for ${domain} with IP ${new_ip}"
+                  response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
+                    -H "x-api-key: ${NEXTDNS_API_KEY}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"name\":\"${domain}\",\"content\":\"${new_ip}\"}")
+
+                  echo "POST response: $response"
+
+                  # Check if the response contains errors
+                  if echo "$response" | jq -e '.errors' > /dev/null; then
+                      echo "Error creating/updating rewrite for ${domain}: $response"
+                      exit 1
+                  fi
+
+                  echo "Successfully created/updated rewrite for ${domain} with IP ${new_ip}"
+              done
           }
 
           # Query DNS server and update rewrites
