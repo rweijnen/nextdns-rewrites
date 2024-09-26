@@ -43,33 +43,37 @@ jobs:
 
               # Track existing IPs for the domain
               declare -A existing_ips
-              echo "$matching_entries" | while IFS= read -r entry; do
-                  entry_id=$(echo "$entry" | jq -r ".id")
-                  existing_ip=$(echo "$entry" | jq -r ".content")
+              
+              if [[ -n "$matching_entries" ]]; then
+                  echo "$matching_entries" | while IFS= read -r entry; do
+                      entry_id=$(echo "$entry" | jq -r ".id")
+                      existing_ip=$(echo "$entry" | jq -r ".content")
 
-                  echo "Processing existing rewrite ID: $entry_id with IP: $existing_ip for domain: ${domain}"
-                  existing_ips["$existing_ip"]=$entry_id
+                      if [[ -n "$existing_ip" ]]; then
+                          echo "Processing existing rewrite ID: $entry_id with IP: $existing_ip for domain: ${domain}"
+                          existing_ips["$existing_ip"]=$entry_id
 
-                  # Remove matched IPs from the new IP addresses array
-                  if [[ " ${ip_addresses[@]} " =~ " ${existing_ip} " ]]; then
-                      echo "No change needed for ${domain}, rewrite with ID $entry_id already has valid IP ${existing_ip}"
-                      ip_addresses=("${ip_addresses[@]/$existing_ip}")  # Remove matched IP from the list
-                  else
-                      if [[ -n "$entry_id" && "$entry_id" != "null" ]]; then
-                          echo "Deleting outdated rewrite for ${domain} with ID ${entry_id}"
-                          set -x
-                          delete_response=$(curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${entry_id}" \
-                            -H "x-api-key: ${NEXTDNS_API_KEY}")
-                          set +x
-                          if [[ "$delete_response" == "" ]]; then
-                              echo "Successfully deleted rewrite for ${domain} with ID ${entry_id}"
+                          # Remove matched IPs from the new IP addresses array
+                          if [[ " ${ip_addresses[@]} " =~ " ${existing_ip} " ]]; then
+                              echo "No change needed for ${domain}, rewrite with ID $entry_id already has valid IP ${existing_ip}"
+                              ip_addresses=("${ip_addresses[@]/$existing_ip}")  # Remove matched IP from the list
                           else
-                              echo "Error deleting rewrite for ${domain} with ID ${entry_id}: $delete_response"
-                              exit 1
+                              if [[ -n "$entry_id" && "$entry_id" != "null" ]]; then
+                                  echo "Deleting outdated rewrite for ${domain} with ID ${entry_id}"
+                                  delete_response=$(curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${entry_id}" \
+                                    -H "x-api-key: ${NEXTDNS_API_KEY}")
+
+                                  if [[ "$delete_response" == "" ]]; then
+                                      echo "Successfully deleted rewrite for ${domain} with ID ${entry_id}"
+                                  else
+                                      echo "Error deleting rewrite for ${domain} with ID ${entry_id}: $delete_response"
+                                      exit 1
+                                  fi
+                              fi
                           fi
                       fi
-                  fi
-              done
+                  done
+              fi
 
               # If all IPs are already matched, return early
               if [[ ${#ip_addresses[@]} -eq 0 ]]; then
@@ -85,12 +89,11 @@ jobs:
                   fi
 
                   echo "Creating/Updating rewrite for ${domain} with IP ${new_ip}"
-                  set -x
                   response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
                     -H "Content-Type: application/json" \
                     -d "{\"name\":\"${domain}\",\"content\":\"${new_ip}\"}")
-                  set +x
+
                   echo "POST response: $response"
 
                   # Check if the response contains errors
