@@ -60,9 +60,10 @@ jobs:
                           else
                               if [[ -n "$entry_id" && "$entry_id" != "null" ]]; then
                                   echo "Deleting outdated rewrite for ${domain} with ID ${entry_id}"
+                                  set -x
                                   delete_response=$(curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${entry_id}" \
                                     -H "x-api-key: ${NEXTDNS_API_KEY}")
-
+                                  set +x
                                   if [[ "$delete_response" == "" ]]; then
                                       echo "Successfully deleted rewrite for ${domain} with ID ${entry_id}"
                                   else
@@ -89,10 +90,12 @@ jobs:
                   fi
 
                   echo "Creating/Updating rewrite for ${domain} with IP ${new_ip}"
+                  set -x
                   response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
                     -H "Content-Type: application/json" \
                     -d "{\"name\":\"${domain}\",\"content\":\"${new_ip}\"}")
+                  set +x
 
                   echo "POST response: $response"
 
