@@ -41,28 +41,25 @@ jobs:
                   echo "No existing rewrites found for ${domain}"
               fi
 
-              # Keep track of IPs that have been matched
-              declare -A matched_ips
-
-              # Iterate over each matching entry
+              # Track existing IPs for the domain
+              declare -A existing_ips
               echo "$matching_entries" | while IFS= read -r entry; do
                   entry_id=$(echo "$entry" | jq -r ".id")
                   existing_ip=$(echo "$entry" | jq -r ".content")
 
                   echo "Processing existing rewrite ID: $entry_id with IP: $existing_ip for domain: ${domain}"
+                  existing_ips["$existing_ip"]=$entry_id
 
-                  # Check if this IP is still valid for the domain
+                  # Remove matched IPs from the new IP addresses array
                   if [[ " ${ip_addresses[@]} " =~ " ${existing_ip} " ]]; then
                       echo "No change needed for ${domain}, rewrite with ID $entry_id already has valid IP ${existing_ip}"
-                      matched_ips["$existing_ip"]=true  # Mark this IP as handled
                       ip_addresses=("${ip_addresses[@]/$existing_ip}")  # Remove matched IP from the list
                   else
                       if [[ -n "$entry_id" && "$entry_id" != "null" ]]; then
                           echo "Deleting outdated rewrite for ${domain} with ID ${entry_id}"
-                          set -x
                           delete_response=$(curl -s -X DELETE "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites/${entry_id}" \
                             -H "x-api-key: ${NEXTDNS_API_KEY}")
-                          set +x
+
                           if [[ "$delete_response" == "" ]]; then
                               echo "Successfully deleted rewrite for ${domain} with ID ${entry_id}"
                           else
@@ -81,6 +78,11 @@ jobs:
 
               # Add any remaining IP addresses as rewrites
               for new_ip in "${ip_addresses[@]}"; do
+                  if [[ -n "${existing_ips[$new_ip]}" ]]; then
+                      echo "Skipping creation as IP ${new_ip} for domain ${domain} already exists."
+                      continue
+                  fi
+
                   echo "Creating/Updating rewrite for ${domain} with IP ${new_ip}"
                   response=$(curl -s -X POST "https://api.nextdns.io/profiles/${NEXTDNS_PROFILE_ID}/rewrites" \
                     -H "x-api-key: ${NEXTDNS_API_KEY}" \
