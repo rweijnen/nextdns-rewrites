@@ -19,7 +19,7 @@ jobs:
           NEXTDNS_API_KEY: ${{ secrets.NEXTDNS_API_KEY }}
         run: |
           DOMAINS=("archive.today" "archive.ph" "archive.is")
-          DNS_SERVER="1.1.1.1"
+          DNS_SERVER="9.9.9.10"
 
           # Fetch all existing rewrites once
           echo "Fetching all existing rewrites"
