@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4  # Using the latest version
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Query IP addresses and update DNS rewrites
         env:
@@ -130,3 +132,19 @@ jobs:
                   echo "No IP addresses found for ${domain} on ${DNS_SERVER}"
               fi
           done
+
+      - name: Keep workflow alive
+        run: |
+          # Update last run timestamp to prevent workflow from being disabled
+          echo "Last run: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" > .github/last-run.txt
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Commit if there are changes (including the timestamp update)
+          if [[ -n $(git status --porcelain) ]]; then
+              git add .github/last-run.txt
+              git commit -m "Update last run timestamp [skip ci]"
+              git push
+          fi
