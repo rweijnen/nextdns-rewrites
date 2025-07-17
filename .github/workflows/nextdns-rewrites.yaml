@@ -45,9 +45,12 @@ jobs:
 
               # Track existing IPs for the domain
               declare -A existing_ips
+              
+              # Track which IPs should remain
+              declare -a remaining_ips=("${ip_addresses[@]}")
 
               if [[ -n "$matching_entries" ]]; then
-                  echo "$matching_entries" | while IFS= read -r entry; do
+                  while IFS= read -r entry; do
                       entry_id=$(echo "$entry" | jq -r ".id")
                       existing_ip=$(echo "$entry" | jq -r ".content")
 
@@ -58,8 +61,8 @@ jobs:
                           # Check if this IP is still valid for the domain
                           if [[ " ${ip_addresses[@]} " =~ " ${existing_ip} " ]]; then
                               echo "no change needed for ${domain}, rewrite with ID $entry_id already has valid IP ${existing_ip}"
-                              # Remove matched IP from the list - properly filter the array
-                              ip_addresses=($(printf '%s\n' "${ip_addresses[@]}" | grep -v "^${existing_ip}$"))
+                              # Remove matched IP from the remaining list
+                              remaining_ips=($(printf '%s\n' "${remaining_ips[@]}" | grep -v "^${existing_ip}$"))
                           else
                               # Delete outdated entry
                               if [[ -n "$entry_id" && "$entry_id" != "null" ]]; then
@@ -76,8 +79,11 @@ jobs:
                               fi
                           fi
                       fi
-                  done
+                  done <<< "$matching_entries"
               fi
+              
+              # Update ip_addresses to only contain remaining IPs
+              ip_addresses=("${remaining_ips[@]}")
 
               # If all IPs are already matched, return early
               if [[ ${#ip_addresses[@]} -eq 0 ]]; then
