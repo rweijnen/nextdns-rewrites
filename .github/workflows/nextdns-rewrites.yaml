@@ -50,12 +50,12 @@ jobs:
                       existing_ip=$(echo "$entry" | jq -r ".content")
 
                       if [[ -n "$existing_ip" ]]; then
-                          echo "Processing existing rewrite ID: $entry_id with IP: $existing_ip for domain: ${domain}"
+                          echo "processing existing rewrite ID: $entry_id with IP: $existing_ip for domain: ${domain}"
                           existing_ips["$existing_ip"]=$entry_id
 
                           # Check if this IP is still valid for the domain
                           if [[ " ${ip_addresses[@]} " =~ " ${existing_ip} " ]]; then
-                              echo "No change needed for ${domain}, rewrite with ID $entry_id already has valid IP ${existing_ip}"
+                              echo "no change needed for ${domain}, rewrite with ID $entry_id already has valid IP ${existing_ip}"
                               # Remove matched IP from the list
                               ip_addresses=("${ip_addresses[@]/$existing_ip}")
                           else
