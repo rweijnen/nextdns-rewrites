@@ -64,7 +64,7 @@ jobs:
                           if [[ " ${ip_addresses[@]} " =~ " ${existing_ip} " ]]; then
                               echo "no change needed for ${domain}, rewrite with ID $entry_id already has valid IP ${existing_ip}"
                               # Remove matched IP from the remaining list
-                              remaining_ips=($(printf '%s\n' "${remaining_ips[@]}" | grep -v "^${existing_ip}$"))
+                              remaining_ips=($(printf '%s\n' "${remaining_ips[@]}" | grep -v "^${existing_ip}$" || true))
                           else
                               # Delete outdated entry
                               if [[ -n "$entry_id" && "$entry_id" != "null" ]]; then
